@@ -1,0 +1,47 @@
+version: '3'
+
+volumes:
+  opennebula_db:
+  opennebula_data:
+
+#networks:
+#  onenet:
+#    external: true
+
+services:
+  frontend:
+    env_file:
+      - .env
+    image: opennebula-frontend
+    build:
+      context: ./opennebula-frontend/
+      dockerfile: Dockerfile
+    depends_on:
+      - db
+    ports:
+      - "9000:9869"
+    volumes:
+      - opennebula_data:/data
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+      replicas: 1
+
+  db:
+    env_file:
+      - .env
+    image: mariadb:10
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    volumes:
+      - opennebula_db:/var/lib/mysql
+    deploy:
+      restart_policy:
+        condition: always
+        delay: 10s
+      replicas: 1
