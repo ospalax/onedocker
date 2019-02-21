@@ -4,8 +4,8 @@ volumes:
   opennebula_db:
   opennebula_data:
 
-#networks:
-#  onenet:
+networks:
+  onenet:
 #    external: true
 
 services:
@@ -16,12 +16,17 @@ services:
     build:
       context: ./opennebula-frontend/
       dockerfile: Dockerfile
+    restart: always
+    environment:
+      ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
     depends_on:
       - db
     ports:
       - "9000:9869"
     volumes:
       - opennebula_data:/data
+    networks:
+      - onenet
     deploy:
       restart_policy:
         condition: on-failure
@@ -40,6 +45,8 @@ services:
       MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
     volumes:
       - opennebula_db:/var/lib/mysql
+    networks:
+      - onenet
     deploy:
       restart_policy:
         condition: always

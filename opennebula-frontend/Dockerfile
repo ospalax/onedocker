@@ -26,6 +26,7 @@ RUN echo "deb https://downloads.opennebula.org/repo/5.6/Debian/9 stable opennebu
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     lsb-release \
+    mariadb-client \
     opennebula \
     opennebula-flow \
     opennebula-gate \
@@ -48,3 +49,4 @@ RUN chmod 755 /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
 EXPOSE 9869/tcp
+EXPOSE 2633/tcp
