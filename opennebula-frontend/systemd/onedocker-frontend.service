@@ -1,0 +1,17 @@
+[Unit]
+Description=ONE Docker Frontend Setup Service
+
+[Service]
+PassEnvironment=ONEADMIN_PASSWORD
+PassEnvironment=MYSQL_DATABASE
+PassEnvironment=MYSQL_USER
+PassEnvironment=MYSQL_PASSWORD
+PassEnvironment=MYSQL_ROOT_PASSWORD
+PassEnvironment=OPENNEBULA_HOSTNAME
+Type=oneshot
+ExecStart=/bin/sh -c /onedocker-frontend.sh
+RemainAfterExit=true
+#StandardOutput=journal
+
+[Install]
+WantedBy=default.target

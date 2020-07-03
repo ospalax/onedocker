@@ -3,36 +3,13 @@ version: '3'
 volumes:
   opennebula_db:
   opennebula_data:
+  oneadmin_data:
 
 networks:
   onenet:
 #    external: true
 
 services:
-  frontend:
-    env_file:
-      - .env
-    image: opennebula-frontend
-    build:
-      context: ./opennebula-frontend/
-      dockerfile: Dockerfile
-    restart: always
-    environment:
-      ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
-    depends_on:
-      - db
-    ports:
-      - "9000:9869"
-    volumes:
-      - opennebula_data:/data
-    networks:
-      - onenet
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-      replicas: 1
-
   db:
     env_file:
       - .env
@@ -52,3 +29,46 @@ services:
         condition: always
         delay: 10s
       replicas: 1
+
+  opennebula-frontend:
+    env_file:
+      - .env
+    image: "opennebula-frontend:${OPENNEBULA_VERSION:-latest}"
+    build:
+      args:
+        OPENNEBULA_VERSION: "${OPENNEBULA_VERSION}"
+      context: "./opennebula-frontend/${ONEDOCKER_INIT:-systemd}/"
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      OPENNEBULA_HOSTNAME: "${OPENNEBULA_HOSTNAME}"
+      ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+#      ONEADMIN_SSH_PRIV_KEY: "/onedocker/sshpriv.key"
+#      ONEADMIN_SSH_PUB_KEY: "/onedocker/sshpub.key"
+    depends_on:
+      - db
+    ports:
+      - "9000:9869"
+    volumes:
+      - opennebula_data:/data
+      - oneadmin_data:/oneadmin
+#      - ./identity:/onedocker/sshpriv.key:ro
+#      - ./identity.pub:/onedocker/sshpub.key:ro
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+#      - /sys/fs/cgroup/systemd
+#      - /var/lib/journal
+    networks:
+      - onenet
+    deploy:
+      restart_policy:
+        condition: always
+        delay: 10s
+      replicas: 1
+
