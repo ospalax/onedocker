@@ -1,20 +1,20 @@
 # onedocker
 
-**ONE Docker** project - an attempt to dockerize OpenNebula
+## ONE Docker project - an attempt to dockerize OpenNebula
 
 **DISCLAIMER**:
 
-    This is *Work-In-Progress* and *Proof-of-Concept* kind of thing - so it does not thrive to follow best-practices or guidelines how to create proper docker/microservice focused application.
+This is *Work-In-Progress* and *Proof-of-Concept* kind of thing - so it does not thrive to follow best-practices or guidelines how to create proper docker/microservice focused application.
 
 **NOTE**:
 
-    Due to simplicity reasons - all of OpenNebula's services are running inside the one big container `opennebula-frontend` (resembling more of a system container or VM - as of now).
+Due to simplicity reasons - all of OpenNebula's services are running inside the one big container `opennebula-frontend` (resembling more of a system container or VM - as of now).
 
 ## Usage
 
 **IMPORTANT**:
 
-    You must have installed [`podman`](https://podman.io) and [`podman-compose`](https://github.com/containers/podman-compose)!
+You must have installed [`podman`](https://podman.io) and [`podman-compose`](https://github.com/containers/podman-compose)!
 
 ### Build and start ONE Docker
 
@@ -50,5 +50,5 @@ ONE Docker is reusing the OpenNebula's service files which are systemd's units -
 
 **NOTE**:
 
-    There is a plan to create an alternative - more **docker** friendly - version which will not be relying on systemd but it will utilize some other init system more suited for container environment (`runit`?).
+There is a plan to create an alternative - more **docker** friendly - version which will not be relying on systemd but it will utilize some other init system more suited for container environment (`runit`?).
 
