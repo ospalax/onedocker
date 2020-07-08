@@ -2,7 +2,8 @@
 # ONE Docker
 #
 
-FROM debian:10
+ARG DEBIAN_VERSION=10
+FROM debian:${DEBIAN_VERSION}
 LABEL version="1.0" \
     maintainer="Petr Ospalý (pospaly@opennebula.io)" \
     description="ONE Docker - Dockerized OpenNebula"
@@ -11,6 +12,7 @@ LABEL version="1.0" \
 # BUILD ARGS
 #
 
+ARG DEBIAN_VERSION
 ARG OPENNEBULA_VERSION=5.12
 
 #
@@ -18,34 +20,36 @@ ARG OPENNEBULA_VERSION=5.12
 #
 
 # basic packages
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    apt-transport-https \
-    apt-utils \
-    ca-certificates \
-    cron \
-    gnupg2 \
-    curl \
-    gpg \
-    openssl \
-    xz-utils \
-    procps \
-    systemd \
-    systemd-sysv \
+RUN DEBIAN_FRONTEND=noninteractive && export DEBIAN_FRONTEND \
+    && apt-get update && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        apt-transport-https \
+        apt-utils \
+        ca-certificates \
+        curl \
+        gnupg2 \
+        openssl \
+        systemd \
+        systemd-sysv \
     && apt-get clean && rm -rf /tmp/* /var/tmp/*
 
-# opennebula packages
+# prepare opennebula repo
 RUN curl -fsSL -o - https://downloads.opennebula.io/repo/repo.key | apt-key add -
-RUN echo "deb https://downloads.opennebula.io/repo/5.12/Debian/10 stable opennebula" \
+RUN echo "deb https://downloads.opennebula.io/repo/${OPENNEBULA_VERSION}/Debian/10 stable opennebula" \
     > /etc/apt/sources.list.d/opennebula.list
-RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    lsb-release \
-    mariadb-client \
-    opennebula \
-    opennebula-flow \
-    opennebula-gate \
-    opennebula-sunstone \
+
+# opennebula packages and dependencies
+RUN DEBIAN_FRONTEND=noninteractive && export DEBIAN_FRONTEND \
+    && apt-get update && apt-get install -y --no-install-recommends \
+        mariadb-client \
+        opennebula \
+        opennebula-flow \
+        opennebula-gate \
+        opennebula-sunstone \
+        procps \
+        sudo \
+        file \
+        uuid-runtime \
     && apt-get clean && rm -rf /tmp/* /var/tmp/*
 
 # ruby dependencies - deprecated since 5.10
