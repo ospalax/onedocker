@@ -32,6 +32,8 @@ RUN sed -i "s/[\$][{]OPENNEBULA_VERSION[}]/${OPENNEBULA_VERSION}/" \
 # opennebula packages and dependencies
 RUN dnf -y install \
         mariadb \
+        podman \
+        podman-docker \
         opennebula-server \
         opennebula-ruby \
         opennebula-flow \

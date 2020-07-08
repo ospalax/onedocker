@@ -6,6 +6,10 @@
 
 This is *Work-In-Progress* and *Proof-of-Concept* kind of thing - so it does not thrive to follow best-practices or guidelines how to create proper docker/microservice focused application.
 
+**DISCLAIMER 2**:
+
+Currently designed to work with `podman` and `podman-compose`. Also the Debian version is behind the CentOS due to the absence of `podman` which is replacing `docker-cli` and removing the need to run docker daemon for Opennebula's DockerHub marketplace to work.
+
 **NOTE**:
 
 Due to simplicity reasons - all of OpenNebula's services are running inside the one big container `opennebula-frontend` (resembling more of a system container or VM - as of now).

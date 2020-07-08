@@ -38,7 +38,7 @@ services:
       args:
         OPENNEBULA_VERSION: "${OPENNEBULA_VERSION}"
       context: "./opennebula-frontend/${ONEDOCKER_INIT:-systemd}/"
-      dockerfile: "Dockerfile-${ONEDOCKER_OS:-debian}"
+      dockerfile: "Dockerfile-${ONEDOCKER_OS:-centos}"
     restart: always
     environment:
       OPENNEBULA_HOSTNAME: "${OPENNEBULA_HOSTNAME}"

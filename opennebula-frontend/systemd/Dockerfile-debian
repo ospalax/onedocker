@@ -2,6 +2,15 @@
 # ONE Docker
 #
 
+# TODO: Missing podman in stable debian
+#
+#       Running docker is possible but podman (outside) needs permissions to
+#       bind mount docker.sock inside and podman-compose does not support
+#       'privileged: true' at the time of this writing
+#
+#       More info:
+#       https://github.com/containers/podman/issues/6015
+
 ARG DEBIAN_VERSION=10
 FROM debian:${DEBIAN_VERSION}
 LABEL version="1.0" \
