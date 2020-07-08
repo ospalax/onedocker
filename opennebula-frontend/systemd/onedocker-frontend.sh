@@ -52,6 +52,22 @@ prepare_oneadmin_data()
     chmod 700 /oneadmin/auth
 }
 
+prepare_onedata()
+{
+    # ensure the existence of the datastores directory
+    if ! [ -d /data/datastores ] ; then
+        mkdir -p /data/datastores
+    fi
+
+    # setup the datastores
+    rm -rf /var/lib/one/datastores
+    ln -s /data/datastores /var/lib/one/datastores
+
+    # and ensure the correct permissions
+    chown -R "${ONEADMIN_USERNAME}:" /data/datastores
+    chmod 750 /data/datastores
+}
+
 # if password was changed - update it and restart oned
 setup_one_user()
 {
@@ -196,6 +212,9 @@ fi
 msg "PRESEED ONEADMIN's ONE_AUTH"
 prepare_oneadmin_data
 
+msg "CONFIGURE DATA"
+prepare_onedata
+
 msg "CONFIGURE ONED (oned.conf)"
 configure_oned
 
@@ -216,6 +235,6 @@ systemctl start opennebula-flow.service
 systemctl start opennebula-gate.service
 systemctl start opennebula-sunstone.service
 
-msg "END AND DONE"
+msg "DONE"
 
 exit 0
