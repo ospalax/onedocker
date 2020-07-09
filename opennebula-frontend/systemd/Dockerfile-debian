@@ -2,15 +2,6 @@
 # ONE Docker
 #
 
-# TODO: Missing podman in stable debian
-#
-#       Running docker is possible but podman (outside) needs permissions to
-#       bind mount docker.sock inside and podman-compose does not support
-#       'privileged: true' at the time of this writing
-#
-#       More info:
-#       https://github.com/containers/podman/issues/6015
-
 ARG DEBIAN_VERSION=10
 FROM debian:${DEBIAN_VERSION}
 LABEL version="1.0" \
@@ -23,6 +14,7 @@ LABEL version="1.0" \
 
 ARG DEBIAN_VERSION
 ARG OPENNEBULA_VERSION=5.12
+# TODO: ARG DOCKER_VERSION=19.03
 
 #
 # PACKAGES
@@ -47,10 +39,17 @@ RUN curl -fsSL -o - https://downloads.opennebula.io/repo/repo.key | apt-key add 
 RUN echo "deb https://downloads.opennebula.io/repo/${OPENNEBULA_VERSION}/Debian/10 stable opennebula" \
     > /etc/apt/sources.list.d/opennebula.list
 
+# prepare docker repo
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -
+RUN . /etc/os-release && echo \
+        "deb [arch=amd64] https://download.docker.com/linux/debian ${VERSION_CODENAME} stable" \
+    > /etc/apt/sources.list.d/docker.list
+
 # opennebula packages and dependencies
 RUN DEBIAN_FRONTEND=noninteractive && export DEBIAN_FRONTEND \
     && apt-get update && apt-get install -y --no-install-recommends \
         mariadb-client \
+        docker-ce-cli \
         opennebula \
         opennebula-flow \
         opennebula-gate \
@@ -93,6 +92,10 @@ RUN systemctl list-unit-files | \
     while read -r _oneservice ; do \
         systemctl mask "${_oneservice}" ; \
     done ;
+
+# disable other unwanted systemd stuff
+RUN systemctl mask dnf-makecache.timer \
+    && systemctl mask dnf-makecache.service
 
 # setup our entrypoint replacement - oneshot service
 RUN systemctl enable onedocker-frontend.service
@@ -138,4 +141,6 @@ CMD [ "/sbin/init" ]
 
 EXPOSE 9869/tcp
 EXPOSE 2633/tcp
+EXPOSE 2474/tcp
+EXPOSE 5030/tcp
 

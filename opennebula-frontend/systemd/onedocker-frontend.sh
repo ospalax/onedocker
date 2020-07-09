@@ -198,16 +198,36 @@ start_opennebula()
     systemctl start opennebula.service
 }
 
+fix_docker()
+{
+    # save the gid of the docker.sock
+    _docker_gid=$(stat -c %g /var/run/docker.sock)
+
+    if getent group | grep -q '^docker:' ; then
+        # we reassign the docker's GID to that of the actual docker.sock
+        groupmod -g "$_docker_gid" docker
+    else
+        # we create docker group
+        groupadd -r -g "$_docker_gid" docker
+    fi
+
+    # and we add oneadmin to the docker group
+    gpasswd -a oneadmin docker
+}
+
 ###############################################################################
 # start service
 #
-
-msg "START (${0})"
 
 # run prestart hook if any
 if [ -f /prestart-hook.sh ] && [ -x /prestart-hook.sh ] ; then
     /prestart-hook.sh
 fi
+
+msg "START (${0})"
+
+msg "FIX DOCKER"
+fix_docker
 
 msg "PRESEED ONEADMIN's ONE_AUTH"
 prepare_oneadmin_data

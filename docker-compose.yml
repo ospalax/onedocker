@@ -40,6 +40,7 @@ services:
       context: "./opennebula-frontend/${ONEDOCKER_INIT:-systemd}/"
       dockerfile: "Dockerfile-${ONEDOCKER_OS:-centos}"
     restart: always
+    privileged: true
     environment:
       OPENNEBULA_HOSTNAME: "${OPENNEBULA_HOSTNAME}"
       ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
@@ -56,12 +57,15 @@ services:
     volumes:
       - opennebula_data:/data
       - oneadmin_data:/oneadmin
+      - /var/run/docker.sock:/var/run/docker.sock
 #      - ./identity:/onedocker/sshpriv.key:ro
 #      - ./identity.pub:/onedocker/sshpub.key:ro
     tmpfs:
       - /run
       - /run/lock
       - /tmp
+      - /var/tmp
+      - /var/lib/containers
 #      - /sys/fs/cgroup/systemd
 #      - /var/lib/journal
     networks:

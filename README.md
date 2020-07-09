@@ -2,30 +2,47 @@
 
 ## ONE Docker project - an attempt to dockerize OpenNebula
 
-**DISCLAIMER**:
+**DISCLAIMER 1**:
 
-This is *Work-In-Progress* and *Proof-of-Concept* kind of thing - so it does not thrive to follow best-practices or guidelines how to create proper docker/microservice focused application.
+This is *Work-In-Progress* and *Proof-of-Concept* kind of thing - so it does not strive to be the definitive answer how to tackle this problem. This PoC also does not try to follow best-practices, patterns or guidelines how to create proper **docker/microservice/container** focused deployment. **So do not draw much inspiration from this...** (It may resemble more of a system containers rather than microservice containers...) Also due to the limitations in both the [`docker`](https://www.docker.com/) and the [`podman`](https://podman.io) the current state is just a working set of workarounds.
 
 **DISCLAIMER 2**:
 
-Currently designed to work with `podman` and `podman-compose`. Also the Debian version is behind the CentOS due to the absence of `podman` which is replacing `docker-cli` and removing the need to run docker daemon for Opennebula's DockerHub marketplace to work.
+For the time being only `podman` and `podman-compose` is supported because of `systemd` which cannot run inside the docker (while OpenNebula uses systemd services). Also due to the limits in the podman (**podman-in-podman** functionality and problematic support of [`docker.sock`](https://github.com/containers/podman/issues/6015)) it must be run under the root user.
 
-**NOTE**:
+**DISCLAIMER 3**:
 
-Due to simplicity reasons - all of OpenNebula's services are running inside the one big container `opennebula-frontend` (resembling more of a system container or VM - as of now).
+I tried to support more than one distro but `CentOS` is the recommended for now. The problem is that currently systemd is needed inside the images (until I port OpenNebula systemd services to some other init system) and unfortunately `Debian` flavoured images keep crashing my host system for some reason (podman/systemd version messing with my cgroup?).
 
 ## Usage
 
-**IMPORTANT**:
+**IMPORTANT 1**:
 
-You must have installed [`podman`](https://podman.io) and [`podman-compose`](https://github.com/containers/podman-compose)!
+You must have installed [`podman`](https://podman.io) and [`podman-compose`](https://github.com/containers/podman-compose). The podman-compose is in early stages of development and not all [`docker-compose`](https://docs.docker.com/compose/compose-file/) features are supported - therefore I recommend to use the devel version which may support more attributes found in my `docker-compose.yml` rather than a version of podman-compose installed via distro packages:
+
+    $ curl -o /usr/local/bin/podman-compose https://raw.githubusercontent.com/containers/podman-compose/devel/podman_compose.py
+    $ chmod +x /usr/local/bin/podman-compose
+
+**IMPORTANT 2**:
+
+While not mandatory I recommend to install `docker` on the host anyway and it **IS** mandatory (as of now) if you wish to use OpenNebula's Docker Hub marketplace.
 
 ### Build and start ONE Docker
+
+**NOTE**:
+
+Without `sudo` the Docker Hub marketplace will not work (and possibly other things).
 
 ```
 $ git clone https://github.com/ospalax/onedocker.git
 $ cd onedocker
-$ podman-compose up --build -d
+$ sudo podman-compose up --build -d
+```
+
+or for Debian flavour (**not** recommended - it randomly crashes):
+
+```
+$ sudo ONEDOCKER_OS=debian podman-compose up --build -d
 ```
 
 By default the OpenNebula's frontend (*Sunstone* web UI) will be accessible at `http://localhost:9000`. You can login there with `oneadmin/changeme123` credentials.
@@ -38,7 +55,7 @@ You are encouraged to change these values.
 
 ```
 $ cd onedocker
-$ podman-compose down
+$ sudo podman-compose down
 ```
 
 ## Description
@@ -50,9 +67,9 @@ This project is trying to create full-featured OpenNebula installation/deploymen
 * support for multiple instances running simultaneously
 * overall ease-of-use for prototyping and testing of different OpenNebula versions
 
-ONE Docker is reusing the OpenNebula's service files which are systemd's units - for that reason the `systemd` is needed to be running inside the container. The problem is that systemd inside a [`docker`](https://www.docker.com/) container fails to start - for the time being the *systemd* version is supported only by `podman` family of tools.
+ONE Docker is reusing the OpenNebula's service files which are systemd's units - for that reason the `systemd` is needed to be running inside the container. The problem is that systemd inside a docker container fails to start and it is supported only by `podman` family of tools.
 
 **NOTE**:
 
-There is a plan to create an alternative - more **docker** friendly - version which will not be relying on systemd but it will utilize some other init system more suited for container environment (`runit`?).
+There is a plan to create an alternative - more docker friendly - version which will not be relying on systemd but it will utilize some other init system more suited for container environment (`runit`?).
 

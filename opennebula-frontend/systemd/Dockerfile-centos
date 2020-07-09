@@ -14,6 +14,7 @@ LABEL version="1.0" \
 
 ARG CENTOS_VERSION
 ARG OPENNEBULA_VERSION=5.12
+# TODO: ARG DOCKER_VERSION=19.03
 
 #
 # PACKAGES
@@ -22,6 +23,7 @@ ARG OPENNEBULA_VERSION=5.12
 # basic packages (and remove kdump)
 RUN dnf -y remove kexec-tools && dnf -y update && dnf -y install \
         epel-release \
+        yum-utils \
     && dnf clean all && rm -rf /var/cache/dnf/*
 
 # prepare opennebula repo
@@ -29,17 +31,21 @@ COPY centos/opennebula-centos.repo /etc/yum.repos.d/opennebula.repo
 RUN sed -i "s/[\$][{]OPENNEBULA_VERSION[}]/${OPENNEBULA_VERSION}/" \
         /etc/yum.repos.d/opennebula.repo
 
+# prepare docker repo
+RUN yum-config-manager --add-repo \
+        https://download.docker.com/linux/centos/docker-ce.repo
+
 # opennebula packages and dependencies
 RUN dnf -y install \
         mariadb \
-        podman \
-        podman-docker \
+        docker-ce-cli \
         opennebula-server \
         opennebula-ruby \
         opennebula-flow \
         opennebula-gate \
         opennebula-sunstone \
         file \
+        e2fsprogs \
     && dnf clean all && rm -rf /var/cache/dnf/*
 
 #
@@ -69,8 +75,20 @@ RUN systemctl list-unit-files | \
         systemctl mask "${_oneservice}" ; \
     done ;
 
+# disable other unwanted systemd stuff
+RUN systemctl mask dnf-makecache.timer \
+    && systemctl mask dnf-makecache.service
+
 # setup our entrypoint replacement - oneshot service
 RUN systemctl enable onedocker-frontend.service
+
+# workaround for rootless podman
+#
+# NOTE:
+#   This avoids the need to run the container in the privilege mode but it will
+#   increase its disk usage considerably - if not pruned regularly...
+#RUN sed -i 's/^driver[[:space:]]*=.*/driver = "vfs"/' \
+#        /etc/containers/storage.conf
 
 #
 # ENTRYPOINT
@@ -113,4 +131,6 @@ CMD [ "/sbin/init" ]
 
 EXPOSE 9869/tcp
 EXPOSE 2633/tcp
+EXPOSE 2474/tcp
+EXPOSE 5030/tcp
 
