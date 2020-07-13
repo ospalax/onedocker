@@ -349,6 +349,11 @@ sunstone()
     msg "PREPARE ONEADMIN AUTH DATA"
     prepare_sunstone_oneadmin_data
 
+    msg "WAIT FOR ONED"
+    while ! [ -f /oneadmin/auth/sunstone_auth ] ; do
+        sleep 1
+    done
+
     msg "START OPENNEBULA SUNSTONE"
     unmask_opennebula_services
     systemctl start opennebula-sunstone.service
