@@ -76,8 +76,11 @@ RUN systemctl list-unit-files | \
     done ;
 
 # disable other unwanted systemd stuff
-RUN systemctl mask dnf-makecache.timer \
-    && systemctl mask dnf-makecache.service
+RUN systemctl mask sshd.service \
+    && systemctl mask systemd-firstboot.service \
+    && systemctl mask dnf-makecache.timer \
+    && systemctl mask dnf-makecache.service \
+    ;
 
 # setup our entrypoint replacement - oneshot service
 RUN systemctl enable onedocker-frontend.service

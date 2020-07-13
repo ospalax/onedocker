@@ -2,6 +2,7 @@
 
 set -e
 
+ONEDOCKER_FRONTEND_SERVICE="${ONEDOCKER_FRONTEND_SERVICE:-all}"
 ONEADMIN_USERNAME="${ONEADMIN_USERNAME:-oneadmin}"
 MYSQL_HOST="${MYSQL_HOST:-db}"
 MYSQL_PORT="${MYSQL_PORT:-3306}"
@@ -15,6 +16,11 @@ OPENNEBULA_HOSTNAME="${OPENNEBULA_HOSTNAME:-opennebula-frontend}"
 msg()
 {
     echo "[ONEDOCKER]: $*"
+}
+
+err()
+{
+    echo "[ONEDOCKER] [!] ERROR: $*"
 }
 
 # IMPORTANT!
@@ -48,8 +54,22 @@ prepare_oneadmin_data()
     fi
 
     # and ensure the correct permissions
-    chown -R "${ONEADMIN_USERNAME}:" /oneadmin
+    chown "${ONEADMIN_USERNAME}:" /oneadmin
+    chown -R "${ONEADMIN_USERNAME}:" /oneadmin/auth
     chmod 700 /oneadmin/auth
+}
+
+prepare_sunstone_oneadmin_data()
+{
+    # ensure the existence of our auth directory
+    if ! [ -d /oneadmin/auth ] ; then
+        err "We need a 'sunstone_auth' inside '/oneadmin/auth'"
+        exit 1
+    fi
+
+    # setup the .one
+    rm -rf /var/lib/one/.one
+    ln -s /oneadmin/auth /var/lib/one/.one
 }
 
 prepare_onedata()
@@ -186,7 +206,7 @@ configure_db()
         -e 'SET GLOBAL TRANSACTION ISOLATION LEVEL READ COMMITTED;'
 }
 
-start_opennebula()
+unmask_opennebula_services()
 {
     # firstly unmask everything again
     systemctl list-unit-files | \
@@ -194,8 +214,6 @@ start_opennebula()
         while read -r _oneservice ; do \
             systemctl unmask "${_oneservice}" ; \
         done ;
-
-    systemctl start opennebula.service
 }
 
 fix_docker()
@@ -215,6 +233,59 @@ fix_docker()
     gpasswd -a oneadmin docker
 }
 
+#
+# frontend services
+#
+
+ssh()
+{
+    msg "START SSH SERVICE"
+    systemctl unmask sshd.service
+    systemctl start sshd.service
+}
+
+oned()
+{
+    msg "FIX DOCKER"
+    fix_docker
+
+    msg "PRESEED ONEADMIN's ONE_AUTH"
+    prepare_oneadmin_data
+
+    msg "CONFIGURE DATA"
+    prepare_onedata
+
+    msg "CONFIGURE ONED (oned.conf)"
+    configure_oned
+
+    msg "WAIT FOR DATABASE"
+    wait_for_mysql
+
+    msg "CONFIGURE DATABASE"
+    configure_db
+
+    msg "START OPENNEBULA ONED SERVICE"
+    unmask_opennebula_services
+    systemctl start opennebula.service
+
+    msg "SETUP ONEADMIN's PASSWORD"
+    setup_one_user
+
+    msg "START OPENNEBULA ONEGATE/ONEFLOW"
+    systemctl start opennebula-flow.service
+    systemctl start opennebula-gate.service
+}
+
+sunstone()
+{
+    msg "PREPARE ONEADMIN AUTH DATA"
+    prepare_sunstone_oneadmin_data
+
+    msg "START OPENNEBULA SUNSTONE"
+    unmask_opennebula_services
+    systemctl start opennebula-sunstone.service
+}
+
 ###############################################################################
 # start service
 #
@@ -224,36 +295,29 @@ if [ -f /prestart-hook.sh ] && [ -x /prestart-hook.sh ] ; then
     /prestart-hook.sh
 fi
 
-msg "START (${0})"
+msg "START (${0}): ${ONEDOCKER_FRONTEND_SERVICE}"
 
-msg "FIX DOCKER"
-fix_docker
-
-msg "PRESEED ONEADMIN's ONE_AUTH"
-prepare_oneadmin_data
-
-msg "CONFIGURE DATA"
-prepare_onedata
-
-msg "CONFIGURE ONED (oned.conf)"
-configure_oned
-
-msg "WAIT FOR DATABASE"
-wait_for_mysql
-
-msg "CONFIGURE DATABASE"
-configure_db
-
-msg "START OPENNEBULA ONED"
-start_opennebula
-
-msg "SETUP ONEADMIN's PASSWORD"
-setup_one_user
-
-msg "START OPENNEBULA SERVICES"
-systemctl start opennebula-flow.service
-systemctl start opennebula-gate.service
-systemctl start opennebula-sunstone.service
+case "${ONEDOCKER_FRONTEND_SERVICE}" in
+    all)
+        msg "CONFIGURE FRONTEND SERVICE: ALL"
+        ssh
+        oned
+        sunstone
+        ;;
+    oned)
+        msg "CONFIGURE FRONTEND SERVICE: ONED"
+        ssh
+        oned
+        ;;
+    sunstone)
+        msg "CONFIGURE FRONTEND SERVICE: SUNSTONE"
+        sunstone
+        ;;
+    *)
+        err "Unknown frontend service: ${ONEDOCKER_FRONTEND_SERVICE}"
+        exit 1
+        ;;
+esac
 
 msg "DONE"
 

@@ -2,7 +2,10 @@
 Description=ONE Docker Frontend Setup Service
 
 [Service]
+PassEnvironment=ONEDOCKER_FRONTEND_SERVICE
 PassEnvironment=ONEADMIN_PASSWORD
+PassEnvironment=ONEADMIN_SSH_PRIVKEY
+PassEnvironment=ONEADMIN_SSH_PUBKEY
 PassEnvironment=MYSQL_DATABASE
 PassEnvironment=MYSQL_USER
 PassEnvironment=MYSQL_PASSWORD
