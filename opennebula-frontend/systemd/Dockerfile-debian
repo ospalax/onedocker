@@ -102,6 +102,9 @@ RUN systemctl mask sshd.service \
 # setup our entrypoint replacement - oneshot service
 RUN systemctl enable onedocker-frontend.service
 
+# cleanup the oneadmin's ssh
+RUN for f in authorized_keys id_rsa id_rsa.pub ; do rm -f "/var/lib/one/.ssh/${f}" ; done
+
 #
 # ENTRYPOINT
 #

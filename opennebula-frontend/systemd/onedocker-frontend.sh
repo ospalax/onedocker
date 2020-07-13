@@ -72,6 +72,68 @@ prepare_sunstone_oneadmin_data()
     ln -s /oneadmin/auth /var/lib/one/.one
 }
 
+configure_sshd_config()
+{
+    sed -i \
+        -e '/PermitRootLogin/d' \
+        -e '/PasswordAuthentication/d' \
+        -e '/PermitEmptyPasswords/d' \
+        -e '/PubkeyAuthentication/d' \
+        /etc/ssh/sshd_config
+
+    {
+        echo 'PermitRootLogin no'
+        echo 'PasswordAuthentication no'
+        echo 'PermitEmptyPasswords no'
+        echo 'PubkeyAuthentication yes'
+    } >> /etc/ssh/sshd_config
+}
+
+prepare_ssh()
+{
+    # ensure the existence of ssh directory
+    if ! [ -d /oneadmin/ssh ] ; then
+        mkdir -p /oneadmin/ssh
+
+        if [ -f /var/lib/one/.ssh/config ] ; then
+            mv /var/lib/one/.ssh/config /oneadmin/ssh/config
+        fi
+    fi
+
+    # copy the custom ssh key-pair
+    _custom_key=no
+    if [ -n "$ONEADMIN_SSH_PRIVKEY" ] && [ -n "$ONEADMIN_SSH_PUBKEY" ] ; then
+        if [ -f "$ONEADMIN_SSH_PRIVKEY" ] && [ -f "$ONEADMIN_SSH_PUBKEY" ] ; then
+            _custom_key=yes
+            _privkey=$(basename "$ONEADMIN_SSH_PRIVKEY")
+            _pubkey=$(basename "$ONEADMIN_SSH_PUBKEY")
+
+            cat "$ONEADMIN_SSH_PRIVKEY" > "/oneadmin/ssh/${_privkey}"
+            chmod 600 "/oneadmin/ssh/${_privkey}"
+
+            cat "$ONEADMIN_SSH_PUBKEY" > "/oneadmin/ssh/${_pubkey}"
+            chmod 644 "/oneadmin/ssh/${_pubkey}"
+
+            cat "/oneadmin/ssh/${_pubkey}" > /oneadmin/ssh/authorized_keys
+            chmod 644 /oneadmin/ssh/authorized_keys
+        fi
+    fi
+
+    # generate ssh key-pair if no custom one is provided
+    if [ "$_custom_key" != 'yes' ] ; then
+        ssh-keygen -N '' -f /oneadmin/ssh/id_rsa
+
+        cat /oneadmin/ssh/id_rsa.pub > /oneadmin/ssh/authorized_keys
+        chmod 644 /oneadmin/ssh/authorized_keys
+    fi
+
+    rm -rf /var/lib/one/.ssh
+    ln -s /oneadmin/ssh /var/lib/one/.ssh
+
+    chown -R "${ONEADMIN_USERNAME}:" /oneadmin/ssh
+    chmod 700 /oneadmin/ssh
+}
+
 prepare_onedata()
 {
     # ensure the existence of the datastores directory
@@ -239,6 +301,9 @@ fix_docker()
 
 ssh()
 {
+    msg "CONFIGURE SSH SERVICE"
+    configure_sshd_config
+
     msg "START SSH SERVICE"
     systemctl unmask sshd.service
     systemctl start sshd.service
@@ -251,6 +316,9 @@ oned()
 
     msg "PRESEED ONEADMIN's ONE_AUTH"
     prepare_oneadmin_data
+
+    msg "PREPARE ONEADMIN's SSH"
+    prepare_ssh
 
     msg "CONFIGURE DATA"
     prepare_onedata

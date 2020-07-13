@@ -45,8 +45,8 @@ services:
       ONEDOCKER_FRONTEND_SERVICE: "oned"
       OPENNEBULA_HOSTNAME: "${OPENNEBULA_HOSTNAME}"
       ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
-      ONEADMIN_SSH_PRIVKEY: "/oneadmin/ssh/identity"
-      ONEADMIN_SSH_PUBKEY: "/oneadmin/ssh/identity.pub"
+      ONEADMIN_SSH_PRIVKEY: "/ssh/id_rsa"
+      ONEADMIN_SSH_PUBKEY: "/ssh/id_rsa.pub"
       MYSQL_DATABASE: "${MYSQL_DATABASE}"
       MYSQL_USER: "${MYSQL_USER}"
       MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
@@ -60,7 +60,7 @@ services:
       - opennebula_data:/data
       - oneadmin_data:/oneadmin
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./ssh:/oneadmin/ssh:ro
+      - ./ssh:/ssh:ro
     tmpfs:
       - /run
       - /run/lock
