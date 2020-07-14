@@ -94,6 +94,7 @@ services:
       - opennebula-frontend
     ports:
       - "9000:9869"
+      - "29876:29876"
     volumes:
       - oneadmin_data:/oneadmin
     tmpfs:
