@@ -1,0 +1,16 @@
+[Unit]
+Description=ONE Docker Node Setup Service
+
+[Service]
+PassEnvironment=ONEADMIN_USERNAME
+PassEnvironment=ONEADMIN_SSH_PRIVKEY
+PassEnvironment=ONEADMIN_SSH_PUBKEY
+PassEnvironment=OPENNEBULA_FRONTEND_HOSTNAME
+PassEnvironment=OPENNEBULA_NODE_SSHPORT
+Type=oneshot
+ExecStart=/bin/sh -c /onedocker-node.sh
+RemainAfterExit=true
+#StandardOutput=journal
+
+[Install]
+WantedBy=default.target

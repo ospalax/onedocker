@@ -58,6 +58,7 @@ RUN DEBIAN_FRONTEND=noninteractive && export DEBIAN_FRONTEND \
         sudo \
         file \
         uuid-runtime \
+        netcat \
     && apt-get clean && rm -rf /tmp/* /var/tmp/*
 
 # ruby dependencies - deprecated since 5.10
@@ -104,6 +105,9 @@ RUN systemctl enable onedocker-frontend.service
 
 # cleanup the oneadmin's ssh
 RUN for f in authorized_keys id_rsa id_rsa.pub ; do rm -f "/var/lib/one/.ssh/${f}" ; done
+
+# cleanup the ssh host keys if present
+RUN rm -f /etc/ssh/ssh_host_*
 
 #
 # ENTRYPOINT

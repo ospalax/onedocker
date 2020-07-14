@@ -14,7 +14,6 @@ LABEL version="1.0" \
 
 ARG CENTOS_VERSION
 ARG OPENNEBULA_VERSION=5.12
-# TODO: ARG DOCKER_VERSION=19.03
 
 #
 # PACKAGES
@@ -31,22 +30,9 @@ COPY centos/opennebula-centos.repo /etc/yum.repos.d/opennebula.repo
 RUN sed -i "s/[\$][{]OPENNEBULA_VERSION[}]/${OPENNEBULA_VERSION}/" \
         /etc/yum.repos.d/opennebula.repo
 
-# prepare docker repo
-RUN yum-config-manager --add-repo \
-        https://download.docker.com/linux/centos/docker-ce.repo
-
 # opennebula packages and dependencies
 RUN dnf -y install \
-        mariadb \
-        docker-ce-cli \
-        opennebula-server \
-        opennebula-ruby \
-        opennebula-flow \
-        opennebula-gate \
-        opennebula-sunstone \
-        file \
-        e2fsprogs \
-        nc \
+        opennebula-node-kvm \
     && dnf clean all && rm -rf /var/cache/dnf/*
 
 #
@@ -60,21 +46,14 @@ RUN rm -f /etc/machine-id
 # the onedocker deployment via systemd's oneshot service
 
 # onedocker script which is doing the heavy-lifting
-COPY onedocker-frontend.sh /
-RUN chown root:root /onedocker-frontend.sh
-RUN chmod 755 /onedocker-frontend.sh
+COPY onedocker-node.sh /
+RUN chown root:root /onedocker-node.sh
+RUN chmod 755 /onedocker-node.sh
 
 # oneshot systemd service to execute onedocker script
-COPY onedocker-frontend.service /etc/systemd/system/
-RUN chown root:root /etc/systemd/system/onedocker-frontend.service
-RUN chmod 644 /etc/systemd/system/onedocker-frontend.service
-
-# disable autostart of opennebula services
-RUN systemctl list-unit-files | \
-    awk '{if (($1 ~ /^opennebula/) && ($2 != "static")) print $1;}' | \
-    while read -r _oneservice ; do \
-        systemctl mask "${_oneservice}" ; \
-    done ;
+COPY onedocker-node.service /etc/systemd/system/
+RUN chown root:root /etc/systemd/system/onedocker-node.service
+RUN chmod 644 /etc/systemd/system/onedocker-node.service
 
 # disable other unwanted systemd stuff
 RUN systemctl mask sshd.service \
@@ -83,8 +62,11 @@ RUN systemctl mask sshd.service \
     && systemctl mask dnf-makecache.service \
     ;
 
+# do not autostart libvirtd
+RUN systemctl mask libvirtd.service
+
 # setup our entrypoint replacement - oneshot service
-RUN systemctl enable onedocker-frontend.service
+RUN systemctl enable onedocker-node.service
 
 # cleanup the oneadmin's ssh
 RUN for f in authorized_keys id_rsa id_rsa.pub ; do rm -f "/var/lib/one/.ssh/${f}" ; done
@@ -139,9 +121,5 @@ CMD [ "/sbin/init" ]
 # PUBLISHED SERVICES
 #
 
-EXPOSE 9869/tcp
-EXPOSE 2633/tcp
-EXPOSE 2474/tcp
-EXPOSE 5030/tcp
-EXPOSE 29876/tcp
+# EXPOSE 22/tcp
 

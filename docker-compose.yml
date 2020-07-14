@@ -4,6 +4,8 @@ volumes:
   opennebula_db:
   opennebula_data:
   oneadmin_data:
+  opennebula_nodedata:
+  oneadmin_nodedata:
 
 networks:
   onenet:
@@ -42,8 +44,10 @@ services:
     restart: always
     privileged: true
     environment:
-      ONEDOCKER_FRONTEND_SERVICE: "oned"
-      OPENNEBULA_HOSTNAME: "${OPENNEBULA_HOSTNAME}"
+      OPENNEBULA_FRONTEND_SERVICE: "oned"
+      OPENNEBULA_FRONTEND_HOSTNAME: "${OPENNEBULA_FRONTEND_HOSTNAME}"
+      OPENNEBULA_NODE_SSHPORT: "2222"
+      OPENNEBULA_NODE_HOSTNAME: "${OPENNEBULA_NODE_HOSTNAME}"
       ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
       ONEADMIN_SSH_PRIVKEY: "/ssh/id_rsa"
       ONEADMIN_SSH_PUBKEY: "/ssh/id_rsa.pub"
@@ -53,6 +57,7 @@ services:
       MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
     depends_on:
       - db
+      - opennebula-node
     ports:
       - "2222:22"
       - "2633:2633"
@@ -67,6 +72,7 @@ services:
       - /tmp
       - /var/tmp
       - /var/lib/containers
+      - /var/lib/docker
 #      - /sys/fs/cgroup/systemd
 #      - /var/lib/journal
     networks:
@@ -88,8 +94,8 @@ services:
       dockerfile: "Dockerfile-${ONEDOCKER_OS:-centos}"
     restart: always
     environment:
-      ONEDOCKER_FRONTEND_SERVICE: "sunstone"
-      OPENNEBULA_HOSTNAME: "${OPENNEBULA_HOSTNAME}"
+      OPENNEBULA_FRONTEND_SERVICE: "sunstone"
+      OPENNEBULA_FRONTEND_HOSTNAME: "${OPENNEBULA_FRONTEND_HOSTNAME}"
     depends_on:
       - opennebula-frontend
     ports:
@@ -97,6 +103,40 @@ services:
       - "29876:29876"
     volumes:
       - oneadmin_data:/oneadmin
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+      - /var/tmp
+    networks:
+      - onenet
+    deploy:
+      restart_policy:
+        condition: always
+        delay: 10s
+      replicas: 1
+
+  opennebula-node:
+    env_file:
+      - .env
+    image: "opennebula-node:${OPENNEBULA_VERSION:-latest}"
+    build:
+      args:
+        OPENNEBULA_VERSION: "${OPENNEBULA_VERSION}"
+      context: "./opennebula-node/${ONEDOCKER_INIT:-systemd}/"
+      #dockerfile: "Dockerfile-${ONEDOCKER_OS:-centos}"
+      dockerfile: "Dockerfile-centos"
+    restart: always
+    privileged: true
+    environment:
+      OPENNEBULA_NODE_SSHPORT: "2222"
+      OPENNEBULA_FRONTEND_HOSTNAME: "${OPENNEBULA_FRONTEND_HOSTNAME}"
+      ONEADMIN_SSH_PRIVKEY: "/ssh/id_rsa"
+      ONEADMIN_SSH_PUBKEY: "/ssh/id_rsa.pub"
+    volumes:
+      - opennebula_nodedata:/data
+      - oneadmin_nodedata:/oneadmin
+      - ./ssh:/ssh:ro
     tmpfs:
       - /run
       - /run/lock

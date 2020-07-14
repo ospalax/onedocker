@@ -2,11 +2,14 @@
 
 set -e
 
-ONEDOCKER_FRONTEND_SERVICE="${ONEDOCKER_FRONTEND_SERVICE:-all}"
+OPENNEBULA_FRONTEND_SERVICE="${OPENNEBULA_FRONTEND_SERVICE:-all}"
+OPENNEBULA_NODE_SSHPORT="${OPENNEBULA_NODE_SSHPORT:-22}"
 ONEADMIN_USERNAME="${ONEADMIN_USERNAME:-oneadmin}"
 MYSQL_HOST="${MYSQL_HOST:-db}"
 MYSQL_PORT="${MYSQL_PORT:-3306}"
-OPENNEBULA_HOSTNAME="${OPENNEBULA_HOSTNAME:-opennebula-frontend}"
+OPENNEBULA_FRONTEND_HOSTNAME="${OPENNEBULA_FRONTEND_HOSTNAME:-opennebula-frontend}"
+OPENNEBULA_NODE_IM_MAD="${OPENNEBULA_NODE_IM_MAD:-kvm}"
+OPENNEBULA_NODE_VM_MAD="${OPENNEBULA_NODE_VM_MAD:-kvm}"
 
 
 ###############################################################################
@@ -89,15 +92,35 @@ configure_sshd_config()
     } >> /etc/ssh/sshd_config
 }
 
+restore_ssh_host_keys()
+{
+    # create new or restore saved ssh host keys
+    if ! [ -d /data/ssh_host_keys ] ; then
+        # we have no keys saved
+        mkdir -p /data/ssh_host_keys
+
+        # force recreating of new host keys
+        rm -f /etc/ssh/ssh_host_*
+        ssh-keygen -A
+
+        # save the keys
+        cp -a /etc/ssh/ssh_host_* /data/ssh_host_keys/
+    else
+        # restore the saved ssh host keys
+        cp -af /data/ssh_host_keys/ssh_host_* /etc/ssh/
+    fi
+}
+
 prepare_ssh()
 {
     # ensure the existence of ssh directory
     if ! [ -d /oneadmin/ssh ] ; then
         mkdir -p /oneadmin/ssh
+    fi
 
-        if [ -f /var/lib/one/.ssh/config ] ; then
-            mv /var/lib/one/.ssh/config /oneadmin/ssh/config
-        fi
+    # save the ssh config if present
+    if ! [ -f /oneadmin/ssh/config ] && [ -f /var/lib/one/.ssh/config ] ; then
+        mv /var/lib/one/.ssh/config /oneadmin/ssh/config
     fi
 
     # copy the custom ssh key-pair
@@ -125,6 +148,23 @@ prepare_ssh()
 
         cat /oneadmin/ssh/id_rsa.pub > /oneadmin/ssh/authorized_keys
         chmod 644 /oneadmin/ssh/authorized_keys
+    fi
+
+    # maybe we are running opennebula node on a non-standard port
+    if [ -n "${OPENNEBULA_NODE_HOSTNAME}" ] && [ "${OPENNEBULA_NODE_SSHPORT}" -ne 22 ] ; then
+        # we will proxy ssh to this new port
+        cat >> /oneadmin/ssh/config <<EOF
+
+Host ${OPENNEBULA_NODE_HOSTNAME}
+  StrictHostKeyChecking yes
+  ServerAliveInterval 10
+  # IMPORTANT: set the following 'Control*' options the same way as above
+  ControlMaster no
+  ControlPersist 70s
+  ControlPath /run/one/ssh-socks/ctl-M-%C.sock
+  Port ${OPENNEBULA_NODE_SSHPORT}
+
+EOF
     fi
 
     rm -rf /var/lib/one/.ssh
@@ -189,7 +229,7 @@ setup_one_user()
 configure_oned()
 {
     # setup hostname
-    sed -i "s/^[[:space:]#]*HOSTNAME[[:space:]]*=.*/HOSTNAME = \"${OPENNEBULA_HOSTNAME}\"/" \
+    sed -i "s/^[[:space:]#]*HOSTNAME[[:space:]]*=.*/HOSTNAME = \"${OPENNEBULA_FRONTEND_HOSTNAME}\"/" \
         /etc/one/oned.conf
 
     # comment-out all DB directives from oned configuration
@@ -295,6 +335,15 @@ fix_docker()
     gpasswd -a oneadmin docker
 }
 
+join_node()
+{
+    if [ -n "$OPENNEBULA_NODE_HOSTNAME" ] ; then
+        msg "ADD NODE '${OPENNEBULA_NODE_HOSTNAME}' TO THE OPENNEBULA"
+        su - oneadmin -c \
+            "onehost create -i ${OPENNEBULA_NODE_IM_MAD} -v ${OPENNEBULA_NODE_VM_MAD} ${OPENNEBULA_NODE_HOSTNAME}"
+    fi
+}
+
 #
 # frontend services
 #
@@ -303,6 +352,9 @@ ssh()
 {
     msg "CONFIGURE SSH SERVICE"
     configure_sshd_config
+
+    msg "PREPARE SSH HOST KEYS"
+    restore_ssh_host_keys
 
     msg "START SSH SERVICE"
     systemctl unmask sshd.service
@@ -368,26 +420,31 @@ if [ -f /prestart-hook.sh ] && [ -x /prestart-hook.sh ] ; then
     /prestart-hook.sh
 fi
 
-msg "START (${0}): ${ONEDOCKER_FRONTEND_SERVICE}"
+msg "START (${0}): ${OPENNEBULA_FRONTEND_SERVICE}"
 
-case "${ONEDOCKER_FRONTEND_SERVICE}" in
+case "${OPENNEBULA_FRONTEND_SERVICE}" in
+    none)
+        msg "MAINTENANCE MODE - NO RUNNING SERVICES"
+        ;;
     all)
         msg "CONFIGURE FRONTEND SERVICE: ALL"
         ssh
         oned
         sunstone
+        join_node
         ;;
     oned)
         msg "CONFIGURE FRONTEND SERVICE: ONED"
         ssh
         oned
+        join_node
         ;;
     sunstone)
         msg "CONFIGURE FRONTEND SERVICE: SUNSTONE"
         sunstone
         ;;
     *)
-        err "Unknown frontend service: ${ONEDOCKER_FRONTEND_SERVICE}"
+        err "Unknown frontend service: ${OPENNEBULA_FRONTEND_SERVICE}"
         exit 1
         ;;
 esac

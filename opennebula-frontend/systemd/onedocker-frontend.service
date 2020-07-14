@@ -2,7 +2,12 @@
 Description=ONE Docker Frontend Setup Service
 
 [Service]
-PassEnvironment=ONEDOCKER_FRONTEND_SERVICE
+PassEnvironment=OPENNEBULA_FRONTEND_SERVICE
+PassEnvironment=OPENNEBULA_FRONTEND_HOSTNAME
+PassEnvironment=OPENNEBULA_NODE_SSHPORT
+PassEnvironment=OPENNEBULA_NODE_HOSTNAME
+PassEnvironment=OPENNEBULA_NODE_IM_MAD
+PassEnvironment=OPENNEBULA_NODE_VM_MAD
 PassEnvironment=ONEADMIN_PASSWORD
 PassEnvironment=ONEADMIN_SSH_PRIVKEY
 PassEnvironment=ONEADMIN_SSH_PUBKEY
@@ -10,7 +15,6 @@ PassEnvironment=MYSQL_DATABASE
 PassEnvironment=MYSQL_USER
 PassEnvironment=MYSQL_PASSWORD
 PassEnvironment=MYSQL_ROOT_PASSWORD
-PassEnvironment=OPENNEBULA_HOSTNAME
 Type=oneshot
 ExecStart=/bin/sh -c /onedocker-frontend.sh
 RemainAfterExit=true
