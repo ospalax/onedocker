@@ -144,7 +144,10 @@ prepare_ssh()
 
     # generate ssh key-pair if no custom one is provided
     if [ "$_custom_key" != 'yes' ] ; then
-        ssh-keygen -N '' -f /oneadmin/ssh/id_rsa
+        if ! [ -f /oneadmin/ssh/id_rsa ] || ! [ -f /oneadmin/ssh/id_rsa.pub ] ; then
+            rm -f /oneadmin/ssh/id_rsa /oneadmin/ssh/id_rsa.pub
+            ssh-keygen -N '' -f /oneadmin/ssh/id_rsa
+        fi
 
         cat /oneadmin/ssh/id_rsa.pub > /oneadmin/ssh/authorized_keys
         chmod 644 /oneadmin/ssh/authorized_keys
