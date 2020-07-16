@@ -153,8 +153,11 @@ prepare_ssh()
         chmod 644 /oneadmin/ssh/authorized_keys
     fi
 
-    # maybe we are running opennebula node on a non-standard port
-    if [ -n "${OPENNEBULA_NODE_HOSTNAME}" ] && [ "${OPENNEBULA_NODE_SSHPORT}" -ne 22 ] ; then
+    # maybe we are (have to) running opennebula node on a non-standard port
+    # NOTE: workaround for the node and the frontend running on localhost
+    if [ -n "${OPENNEBULA_NODE_HOSTNAME}" ] && \
+       [ "${OPENNEBULA_NODE_SSHPORT}" -ne 22 ] ;
+    then
         # we will proxy ssh to this new port
         cat >> /oneadmin/ssh/config <<EOF
 
@@ -170,11 +173,51 @@ Host ${OPENNEBULA_NODE_HOSTNAME}
 EOF
     fi
 
+    # IMPORTANT:
+    # This is an ugly hack to workaround OpenNebula's hardwired requirement for
+    # SSH to run on a standard 22 port but which will conflict with the same
+    # port for SSH on the host (where frontend container is running)...
+    #
+    # It serves the purpose for what is worth...but much more sensible way
+    # would be to just change SSH port on the host and let frontend to publish
+    # its SSH on standard port 22...!!!
+    if [ -n "${OPENNEBULA_FRONTEND_HOSTNAME}" ] && \
+       [ "${OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT}" -ne 22 ] ;
+    then
+        use_ssh_proxy
+    fi
+
+    # move oneadmin's ssh config dir onto the volume
     rm -rf /var/lib/one/.ssh
     ln -s /oneadmin/ssh /var/lib/one/.ssh
 
     chown -R "${ONEADMIN_USERNAME}:" /oneadmin/ssh
     chmod 700 /oneadmin/ssh
+}
+
+# BEWARE: THIS IS INCREDIBLY NASTY HACK BUT I AM KIND OF PROUD OF IT :)
+use_ssh_proxy()
+{
+    # /var/lib/one/remotes/scripts_common.sh
+    # /usr/lib/one/sh/scripts_common.sh
+    # /var/tmp/one/scripts_common.sh
+
+    # inject these
+    #_frontend_ip="\$(LANG=C ping -W 3 -c 1 ${OPENNEBULA_FRONTEND_HOSTNAME} | sed -n '1s/^PING ${OPENNEBULA_FRONTEND_HOSTNAME} (\([^)]*\)).*/\1/p')"
+    _frontend_ip="\$(ruby -e 'require \"resolv\"; puts Resolv.getaddress(\"${OPENNEBULA_FRONTEND_HOSTNAME}\");')"
+    _proxy_command="-o ProxyCommand=\\\\\"ssh -W localhost:${OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT} -q ${_frontend_ip}\\\\\""
+
+    sed -i \
+        -e "s/^SSH_FWD=.*/&\nSSH_FWD=\"\${SSH_FWD} ${_proxy_command}\"/" \
+        /var/lib/one/remotes/scripts_common.sh
+
+    cat /var/lib/one/remotes/scripts_common.sh \
+        > /usr/lib/one/sh/scripts_common.sh
+
+    if [ -f /var/tmp/one/scripts_common.sh ] ; then
+        cat /var/lib/one/remotes/scripts_common.sh \
+            > /var/tmp/one/scripts_common.sh
+    fi
 }
 
 prepare_onedata()

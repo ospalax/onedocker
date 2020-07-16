@@ -46,7 +46,8 @@ services:
     environment:
       OPENNEBULA_FRONTEND_SERVICE: "oned"
       OPENNEBULA_FRONTEND_HOSTNAME: "${OPENNEBULA_FRONTEND_HOSTNAME}"
-      OPENNEBULA_NODE_SSHPORT: "2222"
+      OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT: "${OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT:-2222}"
+      OPENNEBULA_NODE_SSHPORT: "${OPENNEBULA_NODE_SSHPORT:-2222}"
       OPENNEBULA_NODE_HOSTNAME: "${OPENNEBULA_NODE_HOSTNAME}"
       ONEADMIN_PASSWORD: "${ONEADMIN_PASSWORD}"
       ONEADMIN_SSH_PRIVKEY: "/ssh/id_rsa"
@@ -59,7 +60,7 @@ services:
       - db
       - opennebula-node
     ports:
-      - "2222:22"
+      - "${OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT:-2222}:22"
       - "2633:2633"
     volumes:
       - opennebula_data:/data
@@ -129,7 +130,7 @@ services:
     restart: always
     privileged: true
     environment:
-      OPENNEBULA_NODE_SSHPORT: "2222"
+      OPENNEBULA_NODE_SSHPORT: "${OPENNEBULA_NODE_SSHPORT:-2222}"
       OPENNEBULA_FRONTEND_HOSTNAME: "${OPENNEBULA_FRONTEND_HOSTNAME}"
       ONEADMIN_SSH_PRIVKEY: "/ssh/id_rsa"
       ONEADMIN_SSH_PUBKEY: "/ssh/id_rsa.pub"
