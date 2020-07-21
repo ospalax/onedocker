@@ -184,7 +184,8 @@ EOF
     if [ -n "${OPENNEBULA_FRONTEND_HOSTNAME}" ] && \
        [ "${OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT}" -ne 22 ] ;
     then
-        use_ssh_proxy
+        # still insufficient...
+        : use_ssh_proxy
     fi
 
     # move oneadmin's ssh config dir onto the volume
@@ -195,7 +196,7 @@ EOF
     chmod 700 /oneadmin/ssh
 }
 
-# BEWARE: THIS IS INCREDIBLY NASTY HACK BUT I AM KIND OF PROUD OF IT :)
+# BEWARE: THIS IS INCREDIBLY NASTY HACK AND...IT IS NOT SUFFICIENT ANYWAY...
 use_ssh_proxy()
 {
     # /var/lib/one/remotes/scripts_common.sh
@@ -206,9 +207,13 @@ use_ssh_proxy()
     #_frontend_ip="\$(LANG=C ping -W 3 -c 1 ${OPENNEBULA_FRONTEND_HOSTNAME} | sed -n '1s/^PING ${OPENNEBULA_FRONTEND_HOSTNAME} (\([^)]*\)).*/\1/p')"
     _frontend_ip="\$(ruby -e 'require \"resolv\"; puts Resolv.getaddress(\"${OPENNEBULA_FRONTEND_HOSTNAME}\");')"
     _proxy_command="-o ProxyCommand=\\\\\"ssh -W localhost:${OPENNEBULA_FRONTEND_PUBLISHED_SSHPORT} -q ${_frontend_ip}\\\\\""
+    _proxy_test="test \\\"${_frontend_ip}\\\" != 127.0.0.1"
 
     sed -i \
-        -e "s/^SSH_FWD=.*/&\nSSH_FWD=\"\${SSH_FWD} ${_proxy_command}\"/" \
+        -e "s/^SCP=.*/&\n${_proxy_test} \&\& SCP=\"\${SCP} ${_proxy_command}\"/" \
+        -e "s/^SCP_FWD=.*/&\n${_proxy_test} \&\& SCP_FWD=\"\${SCP_FWD} ${_proxy_command}\"/" \
+        -e "s/^SSH=.*/&\n${_proxy_test} \&\& SSH=\"\${SSH} ${_proxy_command}\"/" \
+        -e "s/^SSH_FWD=.*/&\n${_proxy_test} \&\& SSH_FWD=\"\${SSH_FWD} ${_proxy_command}\"/" \
         /var/lib/one/remotes/scripts_common.sh
 
     cat /var/lib/one/remotes/scripts_common.sh \
