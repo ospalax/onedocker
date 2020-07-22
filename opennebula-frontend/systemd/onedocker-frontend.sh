@@ -10,6 +10,7 @@ MYSQL_PORT="${MYSQL_PORT:-3306}"
 OPENNEBULA_FRONTEND_HOSTNAME="${OPENNEBULA_FRONTEND_HOSTNAME:-opennebula-frontend}"
 OPENNEBULA_NODE_IM_MAD="${OPENNEBULA_NODE_IM_MAD:-kvm}"
 OPENNEBULA_NODE_VM_MAD="${OPENNEBULA_NODE_VM_MAD:-kvm}"
+OPENNEBULA_DEFAULT_VNET_DNS="${OPENNEBULA_DEFAULT_VNET_DNS:-8.8.8.8}"
 
 
 ###############################################################################
@@ -389,10 +390,89 @@ fix_docker()
 join_node()
 {
     if [ -n "$OPENNEBULA_NODE_HOSTNAME" ] ; then
-        msg "ADD NODE '${OPENNEBULA_NODE_HOSTNAME}' TO THE OPENNEBULA"
-        su - oneadmin -c \
-            "onehost create -i ${OPENNEBULA_NODE_IM_MAD} -v ${OPENNEBULA_NODE_VM_MAD} ${OPENNEBULA_NODE_HOSTNAME}"
+        _is_present=$(su - oneadmin -c "onehost list --no-header" | \
+            awk -v node="${OPENNEBULA_NODE_HOSTNAME}" '
+            {
+                if ($2 == node) {
+                    print "yes";
+                    exit 0;
+                }
+            }
+            ')
+
+        if [ "$_is_present" != "yes" ] ; then
+            msg "ADD NODE '${OPENNEBULA_NODE_HOSTNAME}' TO THE OPENNEBULA"
+
+            su - oneadmin -c \
+                "onehost create -i ${OPENNEBULA_NODE_IM_MAD} -v ${OPENNEBULA_NODE_VM_MAD} ${OPENNEBULA_NODE_HOSTNAME}"
+        else
+            msg "NODE '${OPENNEBULA_NODE_HOSTNAME}' ALREADY ADDED"
+        fi
     fi
+}
+
+add_default_vnet()
+{
+    if [ -z "$OPENNEBULA_DEFAULT_VNET_NAME" ] ; then
+        msg "'OPENNEBULA_DEFAULT_VNET_NAME' IS UNSET (no vnet will be setup)"
+        return 0
+    fi
+
+    cat > /tmp/${OPENNEBULA_DEFAULT_VNET_NAME}.tmpl <<EOF
+NAME="${OPENNEBULA_DEFAULT_VNET_NAME}"
+BRIDGE="${OPENNEBULA_DEFAULT_VNET_BRIDGE}"
+BRIDGE_TYPE="linux"
+DNS="${OPENNEBULA_DEFAULT_VNET_DNS}"
+GATEWAY="${OPENNEBULA_DEFAULT_VNET_GATEWAY:-${OPENNEBULA_DEFAULT_VNET_ADDR%%/*}}"
+SECURITY_GROUPS="0"
+VN_MAD="bridge"
+EOF
+
+    if [ -n "${OPENNEBULA_DEFAULT_VNET_POOLSTART}" ] &&
+       [ -n "${OPENNEBULA_DEFAULT_VNET_POOLSIZE}" ] ;
+    then
+        cat >> /tmp/${OPENNEBULA_DEFAULT_VNET_NAME}.tmpl <<EOF
+AR=[
+  TYPE="IP4",
+  IP="${OPENNEBULA_DEFAULT_VNET_POOLSTART}",
+  SIZE="${OPENNEBULA_DEFAULT_VNET_POOLSIZE}"
+]
+EOF
+    else
+        if [ -z "$OPENNEBULA_DEFAULT_VNET_POOLSTART" ] ; then
+            msg "'OPENNEBULA_DEFAULT_VNET_POOLSTART' IS UNSET (no IP range can be setup)"
+        fi
+
+        if [ -z "$OPENNEBULA_DEFAULT_VNET_POOLSIZE" ] ; then
+            msg "'OPENNEBULA_DEFAULT_VNET_POOLSIZE' IS UNSET (no IP range can be setup)"
+        fi
+    fi
+
+    _is_present=$(su - oneadmin -c "onevnet list --no-header" | \
+        awk -v vnet="${OPENNEBULA_DEFAULT_VNET_NAME}" '
+        {
+            if ($4 == vnet) {
+                print "yes";
+                exit 0;
+            }
+        }
+        ')
+
+    msg "CREATE VNET '${OPENNEBULA_DEFAULT_VNET_NAME}'"
+
+    if [ "$_is_present" != "yes" ] ; then
+        su - oneadmin -c "onevnet create /tmp/${OPENNEBULA_DEFAULT_VNET_NAME}.tmpl"
+    else
+        # try to delete it and create anew - but that can fail if some VMs are
+        # using it...
+        if su - oneadmin -c "onevnet delete ${OPENNEBULA_DEFAULT_VNET_NAME}" ; then
+            su - oneadmin -c "onevnet create /tmp/${OPENNEBULA_DEFAULT_VNET_NAME}.tmpl"
+        else
+            msg "VNET '${OPENNEBULA_DEFAULT_VNET_NAME}' ALREADY PRESENT AND USED"
+        fi
+    fi
+
+    rm -f /tmp/${OPENNEBULA_DEFAULT_VNET_NAME}.tmpl
 }
 
 #
@@ -483,19 +563,21 @@ case "${OPENNEBULA_FRONTEND_SERVICE}" in
         oned
         sunstone
         join_node
+        add_default_vnet
         ;;
     oned)
         msg "CONFIGURE FRONTEND SERVICE: ONED"
         ssh
         oned
         join_node
+        add_default_vnet
         ;;
     sunstone)
         msg "CONFIGURE FRONTEND SERVICE: SUNSTONE"
         sunstone
         ;;
     *)
-        err "Unknown frontend service: ${OPENNEBULA_FRONTEND_SERVICE}"
+        err "UNKNOWN FRONTEND SERVICE: ${OPENNEBULA_FRONTEND_SERVICE}"
         exit 1
         ;;
 esac

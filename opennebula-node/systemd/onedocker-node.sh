@@ -117,6 +117,36 @@ prepare_onedata()
     chmod 750 /data/datastores
 }
 
+enable_routing()
+{
+    _default_eth=$(ip route list default | sed -n 's/.*dev[ ]\+\([^ ]*\).*/\1/p')
+
+    iptables -t nat -A POSTROUTING -o "$_default_eth" -j MASQUERADE
+
+    sysctl -w net.ipv4.ip_forward=1
+}
+
+add_default_bridge()
+{
+    if [ -z "$OPENNEBULA_DEFAULT_VNET_BRIDGE" ] ; then
+        msg "'OPENNEBULA_DEFAULT_VNET_BRIDGE' IS UNSET (no bridge will be setup)"
+        return 0
+    fi
+
+    msg "CREATE BRIDGE: ${OPENNEBULA_DEFAULT_VNET_BRIDGE}"
+
+    ip link add name "${OPENNEBULA_DEFAULT_VNET_BRIDGE}" type bridge
+    ip link set "${OPENNEBULA_DEFAULT_VNET_BRIDGE}" up
+
+    if [ -z "$OPENNEBULA_DEFAULT_VNET_ADDR" ] ; then
+        msg "'OPENNEBULA_DEFAULT_VNET_ADDR' IS UNSET (no ip will be set to the bridge)"
+        return 0
+    fi
+
+    msg "ASSIGN IP TO THE BRIDGE: ${OPENNEBULA_DEFAULT_VNET_ADDR}"
+    ip addr add "${OPENNEBULA_DEFAULT_VNET_ADDR}" dev "${OPENNEBULA_DEFAULT_VNET_BRIDGE}"
+}
+
 #
 # node services
 #
@@ -142,6 +172,10 @@ prepare_node()
     msg "CONFIGURE DATA"
     prepare_onedata
 
+    msg "SETUP NETWORK"
+    enable_routing
+    add_default_bridge
+
     msg "START LIBVIRTD SERVICE"
     systemctl unmask libvirtd.service
     systemctl start libvirtd.service
@@ -156,7 +190,7 @@ if [ -f /prestart-hook.sh ] && [ -x /prestart-hook.sh ] ; then
     /prestart-hook.sh
 fi
 
-msg "START (${0}): OPENNEBULA NODE"
+msg "START (${0}): node"
 
 # create one node
 ssh
