@@ -411,6 +411,12 @@ join_node()
     fi
 }
 
+fix_bridge_networking()
+{
+    sed -i 's/^:keep_empty_bridge:.*/:keep_empty_bridge: true/' \
+        /var/lib/one/remotes/etc/vnm/OpenNebulaNetwork.conf
+}
+
 add_default_vnet()
 {
     if [ -z "$OPENNEBULA_DEFAULT_VNET_NAME" ] ; then
@@ -508,6 +514,9 @@ oned()
 
     msg "CONFIGURE ONED (oned.conf)"
     configure_oned
+
+    msg "FIX BRIDGE CONF (OpenNebulaNetwork.conf)"
+    fix_bridge_networking
 
     msg "WAIT FOR DATABASE"
     wait_for_mysql
