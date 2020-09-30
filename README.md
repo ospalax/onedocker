@@ -21,7 +21,7 @@ You must have installed [`podman`](https://podman.io) (some later version **2+**
 
 **IMPORTANT 2**:
 
-While not mandatory I recommend to install `docker` on the host anyway and it **IS** mandatory (as of now) if you wish to use OpenNebula's Docker Hub marketplace. Podman in podman is a buggy mess and have to many issues to make it work (as of now).
+While not mandatory I recommend to install `docker` on the host anyway and it **IS** mandatory (as of now) if you wish to use OpenNebula's Docker Hub marketplace. Podman in podman is a buggy mess and has too many issues to make it work (as of now).
 
 Check your versions:
 
