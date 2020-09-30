@@ -72,7 +72,9 @@ services:
     volumes:
       - opennebula_data:/data
       - oneadmin_data:/oneadmin
-      - /var/run/docker.sock:/var/run/docker.sock
+      # NOTE: uncomment this line if you have docker and want to use Docker Hub
+      # marketplace...
+      #- /var/run/docker.sock:/var/run/docker.sock
       - ./ssh:/ssh:ro
     tmpfs:
       - /run
@@ -107,7 +109,7 @@ services:
     depends_on:
       - opennebula-frontend
     ports:
-      - "9000:9869"
+      - "9869:9869"
       - "29876:29876"
     volumes:
       - oneadmin_data:/oneadmin

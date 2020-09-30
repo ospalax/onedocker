@@ -47,16 +47,22 @@ Without `sudo` the Docker Hub marketplace will not work (and possibly other thin
 ```
 $ git clone https://github.com/ospalax/onedocker.git
 $ cd onedocker
-$ sudo podman-compose up --build -d
+$ podman-compose up --build -d
 ```
 
 or for Debian flavour (**not** recommended - it randomly crashes):
 
 ```
-$ sudo ONEDOCKER_OS=debian podman-compose up --build -d
+$ ONEDOCKER_OS=debian podman-compose up --build -d
 ```
 
-By default the OpenNebula's frontend (*Sunstone* web UI) will be accessible at `http://localhost:9000`. You can login there with `oneadmin/changeme123` credentials.
+If you wish to use Docker Hub marketplace then you must uncomment `docker.sock` volume in the `docker-compose.yml` for `opennebula-frontend` container (service) and run with `sudo`:
+
+```
+$ sudo podman-compose up --build -d
+```
+
+By default the OpenNebula's frontend (*Sunstone* web UI) will be accessible at `http://localhost:9869`. You can login there with `oneadmin/changeme123` credentials.
 
 Inside this repo is the file `.env` where are defined default values used by `docker-compose/podman-compose` to start this application/service deployment.
 

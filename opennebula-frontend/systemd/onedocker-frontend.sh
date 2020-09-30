@@ -372,6 +372,11 @@ unmask_opennebula_services()
 
 fix_docker()
 {
+    if ! [ -e /var/run/docker.sock ] ; then
+        err "NO DOCKER SOCKET (/var/run/docker.sock): SKIP"
+        return 0
+    fi
+
     # save the gid of the docker.sock
     _docker_gid=$(stat -c %g /var/run/docker.sock)
 
